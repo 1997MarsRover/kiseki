@@ -4,12 +4,12 @@ Kiseki — Visualization and animation functions for motion trajectory data.
 
 import numpy as np
 import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, FFMpegWriter, PillowWriter
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
 from pathlib import Path
 from typing import Optional, Union, Tuple, Dict, List
+
 
 from .core import (
     get_bone_connections, 
@@ -35,12 +35,64 @@ VIEW_PRESETS = {
 
 
 # ============================================================================
+# Notebook detection and display helpers
+# ============================================================================
+
+def _in_notebook() -> bool:
+    """Return True if running inside a Jupyter/IPython notebook."""
+    try:
+        from IPython import get_ipython
+        shell = get_ipython()
+        if shell is None:
+            return False
+        return shell.__class__.__name__ in ('ZMQInteractiveShell',)
+    except Exception:
+        return False
+
+
+def _display_animation(anim, fps: int):
+    """Display a matplotlib animation inline in a Jupyter notebook."""
+    from IPython.display import HTML, display as ipy_display
+    
+    try:
+        # HTML5 video (requires ffmpeg, compact output)
+        html = anim.to_html5_video()
+    except Exception:
+        # JS-based fallback (no ffmpeg needed, larger but always works)
+        html = anim.to_jshtml()
+    
+    ipy_display(HTML(html))
+
+
+def _save_animation(anim, output_path: Path, fps: int):
+    """Save animation to a video file (mp4 or gif)."""
+    if output_path.suffix.lower() == '.gif':
+        writer = PillowWriter(fps=fps)
+        anim.save(str(output_path), writer=writer)
+    else:
+        try:
+            writer = FFMpegWriter(
+                fps=fps, 
+                bitrate=1500,
+                extra_args=['-vcodec', 'libx264', '-preset', 'ultrafast', 
+                           '-pix_fmt', 'yuv420p']
+            )
+            anim.save(str(output_path), writer=writer, dpi=80)
+        except Exception as e:
+            print(f"FFMpeg failed: {e}. Saving as GIF.")
+            output_path = output_path.with_suffix('.gif')
+            writer = PillowWriter(fps=fps)
+            anim.save(str(output_path), writer=writer)
+    return output_path
+
+
+# ============================================================================
 # Animation Creation
 # ============================================================================
 
 def create_animation(positions: np.ndarray,
                     hierarchy: Dict[int, Optional[int]],
-                    output_path: Union[str, Path],
+                    output_path: Optional[Union[str, Path]] = None,
                     fps: int = 30,
                     title: str = "Motion Visualization",
                     tracking: bool = True,
@@ -48,14 +100,15 @@ def create_animation(positions: np.ndarray,
                     fixed_view: Optional[Union[Tuple[float, float], str]] = None,
                     hand_point_size: float = 8,
                     trail_indices: Optional[List[int]] = None,
-                    trail_length: int = 30) -> Path:
+                    trail_length: int = 30,
+                    display: bool = False) -> Optional[Path]:
     """
     Create animated skeleton video.
     
     Args:
         positions: (N, J, 3) joint positions
         hierarchy: Joint parent mapping
-        output_path: Output video path
+        output_path: Output video path (ignored when display=True)
         fps: Frames per second
         title: Video title
         tracking: Camera follows root
@@ -64,9 +117,10 @@ def create_animation(positions: np.ndarray,
         hand_point_size: Point size for hand joints
         trail_indices: Joint indices to draw trajectory trails for
         trail_length: Number of past frames to show in trail
+        display: If True, show inline in notebook instead of saving
     
     Returns:
-        Path to saved video
+        Path to saved video, or None when display=True
     """
     num_frames, num_joints = positions.shape[:2]
     bones = get_bone_connections(hierarchy)
@@ -253,29 +307,16 @@ def create_animation(positions: np.ndarray,
                         frames=num_frames, interval=1000/fps, blit=False)
     ax.set_title(title, pad=20)
     
-    # Save
+    # Display inline or save to file
+    if display:
+        _display_animation(anim, fps)
+        plt.close(fig)
+        return None
+    
     output_path = Path(output_path)
-    
-    if output_path.suffix.lower() == '.gif':
-        writer = PillowWriter(fps=fps)
-        anim.save(str(output_path), writer=writer)
-    else:
-        try:
-            writer = FFMpegWriter(
-                fps=fps, 
-                bitrate=1500,
-                extra_args=['-vcodec', 'libx264', '-preset', 'ultrafast', 
-                           '-pix_fmt', 'yuv420p']
-            )
-            anim.save(str(output_path), writer=writer, dpi=80)
-        except Exception as e:
-            print(f"FFMpeg failed: {e}. Saving as GIF.")
-            output_path = output_path.with_suffix('.gif')
-            writer = PillowWriter(fps=fps)
-            anim.save(str(output_path), writer=writer)
-    
+    result = _save_animation(anim, output_path, fps)
     plt.close(fig)
-    return output_path
+    return result
 
 
 def create_frame_grid(positions: np.ndarray,

@@ -32,13 +32,15 @@ def visualize(npy_path: Union[str, Path],
              start_frame: Optional[int] = None,
              end_frame: Optional[int] = None,
              trails: Optional[Union[List[str], str]] = None,
-             trail_length: int = 30) -> Path:
+             trail_length: int = 30,
+             display: bool = False) -> Optional[Path]:
     """
-    Convert .npy motion file to animated video.
+    Convert .npy motion file to animated video or display inline in a notebook.
     
     Args:
         npy_path: Input .npy motion file
-        output_path: Output video path (default: input_name.mp4)
+        output_path: Output video path. Defaults to <stem>.mp4 in the current
+                     working directory. Ignored when display=True.
         bvh_path: Reference BVH file (auto-detected if None)
         norm_path: Normalization file for denormalization
         fps: Frames per second
@@ -60,22 +62,29 @@ def visualize(npy_path: Union[str, Path],
                 Presets: 'wrists', 'hands', 'fingertips', 'feet', 'all_extremities'
                 Or list of joint names: ['left_wrist', 'right_wrist']
         trail_length: Number of past frames visible in each trail (default: 30)
+        display: If True, display the animation inline in a Jupyter notebook
+                 instead of saving to a file.
     
     Returns:
-        Path to saved video
+        Path to saved video, or None when display=True.
         
     Example:
         >>> from kiseki import visualize
         >>> visualize("motion.npy", focus_joints='both_hands', fixed_view='front')
         >>> visualize("motion.npy", trails='wrists', trail_length=30)
         >>> visualize("motion.npy", start_frame=50, end_frame=200)
+        >>> # Display inline in a notebook (no file saved):
+        >>> visualize("motion.npy", display=True)
     """
     # Setup paths
     npy_path = Path(npy_path)
-    if output_path is None:
-        output_path = npy_path.with_suffix('.mp4')
-    else:
-        output_path = Path(output_path)
+    
+    if not display:
+        if output_path is None:
+            # Write to current working directory, not the input file's directory
+            output_path = Path.cwd() / npy_path.with_suffix('.mp4').name
+        else:
+            output_path = Path(output_path)
     
     if title is None:
         title = f"Motion: {npy_path.stem}"
@@ -127,11 +136,14 @@ def visualize(npy_path: Union[str, Path],
         focus_joints=focus_joints, fixed_view=fixed_view,
         hand_point_size=hand_point_size,
         trail_indices=trail_indices, trail_length=trail_length,
+        display=display,
     )
-    print(f"Saved: {result_path}")
+    
+    if result_path is not None:
+        print(f"Saved: {result_path}")
     
     # Optional grid
-    if save_grid:
+    if save_grid and not display:
         grid_path = output_path.with_name(f"{output_path.stem}_frames.png")
         create_frame_grid(positions, hierarchy, grid_path, 
                          num_frames=grid_frames, title=title)

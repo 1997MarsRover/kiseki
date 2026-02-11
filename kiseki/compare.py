@@ -4,7 +4,6 @@ Kiseki — Motion comparison visualization (overlay and side-by-side).
 
 import numpy as np
 import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, FFMpegWriter, PillowWriter
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
@@ -18,7 +17,7 @@ from .core import (
     parse_bvh_hierarchy,
     reconstruct_positions,
 )
-from .visualize import VIEW_PRESETS
+from .visualize import VIEW_PRESETS, _display_animation, _save_animation
 
 
 # Color schemes for the two motions
@@ -74,13 +73,14 @@ def create_comparison_animation(
         positions_a: np.ndarray,
         positions_b: np.ndarray,
         hierarchy: Dict[int, Optional[int]],
-        output_path: Union[str, Path],
+        output_path: Optional[Union[str, Path]] = None,
         mode: str = "overlay",
         fps: int = 30,
         title: Optional[str] = None,
         fixed_view: Optional[Union[Tuple[float, float], str]] = None,
         label_a: str = "Motion A",
-        label_b: str = "Motion B") -> Path:
+        label_b: str = "Motion B",
+        display: bool = False) -> Optional[Path]:
     """
     Create comparison animation of two motions.
     
@@ -88,16 +88,17 @@ def create_comparison_animation(
         positions_a: (N, J, 3) first motion positions
         positions_b: (M, J, 3) second motion positions
         hierarchy: Joint parent mapping
-        output_path: Output video path
+        output_path: Output video path (ignored when display=True)
         mode: "overlay" (both on same axes) or "side_by_side" (two panels)
         fps: Frames per second
         title: Video title
         fixed_view: Camera view preset string or (elev, azim) tuple
         label_a: Label for first motion
         label_b: Label for second motion
+        display: If True, show inline in notebook instead of saving
     
     Returns:
-        Path to saved video
+        Path to saved video, or None when display=True
     """
     # Trim to same length
     num_frames = min(positions_a.shape[0], positions_b.shape[0])
@@ -178,27 +179,16 @@ def create_comparison_animation(
     anim = FuncAnimation(fig, update, frames=num_frames,
                          interval=1000 / fps, blit=False)
     
-    # Save
-    output_path = Path(output_path)
-    if output_path.suffix.lower() == '.gif':
-        writer = PillowWriter(fps=fps)
-        anim.save(str(output_path), writer=writer)
-    else:
-        try:
-            writer = FFMpegWriter(
-                fps=fps, bitrate=2000,
-                extra_args=['-vcodec', 'libx264', '-preset', 'ultrafast',
-                            '-pix_fmt', 'yuv420p']
-            )
-            anim.save(str(output_path), writer=writer, dpi=80)
-        except Exception as e:
-            print(f"FFMpeg failed: {e}. Saving as GIF.")
-            output_path = output_path.with_suffix('.gif')
-            writer = PillowWriter(fps=fps)
-            anim.save(str(output_path), writer=writer)
+    # Display inline or save to file
+    if display:
+        _display_animation(anim, fps)
+        plt.close(fig)
+        return None
     
+    output_path = Path(output_path)
+    result = _save_animation(anim, output_path, fps)
     plt.close(fig)
-    return output_path
+    return result
 
 
 def compare(npy_path_a: Union[str, Path],
@@ -214,14 +204,16 @@ def compare(npy_path_a: Union[str, Path],
             fixed_view: Optional[Union[Tuple[float, float], str]] = None,
             title: Optional[str] = None,
             label_a: Optional[str] = None,
-            label_b: Optional[str] = None) -> Path:
+            label_b: Optional[str] = None,
+            display: bool = False) -> Optional[Path]:
     """
-    Compare two .npy motion files as an animated video.
+    Compare two .npy motion files as an animated video or display inline.
     
     Args:
         npy_path_a: First motion .npy file
         npy_path_b: Second motion .npy file
-        output_path: Output video path (default: compare_A_vs_B.mp4)
+        output_path: Output video path (default: compare_A_vs_B.mp4 in cwd).
+                     Ignored when display=True.
         bvh_path: Reference BVH file (auto-detected if None)
         norm_path: Normalization file for denormalization
         mode: "overlay" (both on same axes) or "side_by_side" (two panels)
@@ -233,22 +225,26 @@ def compare(npy_path_a: Union[str, Path],
         title: Video title
         label_a: Label for first motion
         label_b: Label for second motion
+        display: If True, display inline in notebook instead of saving
     
     Returns:
-        Path to saved video
+        Path to saved video, or None when display=True
     
     Example:
         >>> from kiseki import compare
         >>> compare("generated.npy", "ground_truth.npy", mode="overlay")
         >>> compare("a.npy", "b.npy", mode="side_by_side", fixed_view='front')
+        >>> # Display inline in a notebook:
+        >>> compare("a.npy", "b.npy", display=True)
     """
     npy_path_a = Path(npy_path_a)
     npy_path_b = Path(npy_path_b)
     
-    if output_path is None:
-        output_path = Path(f"compare_{npy_path_a.stem}_vs_{npy_path_b.stem}.mp4")
-    else:
-        output_path = Path(output_path)
+    if not display:
+        if output_path is None:
+            output_path = Path.cwd() / f"compare_{npy_path_a.stem}_vs_{npy_path_b.stem}.mp4"
+        else:
+            output_path = Path(output_path)
     
     if label_a is None:
         label_a = npy_path_a.stem
@@ -286,7 +282,7 @@ def compare(npy_path_a: Union[str, Path],
         e_b = min(end_frame, positions_b.shape[0]) if end_frame else positions_b.shape[0]
         positions_a = positions_a[s:e_a]
         positions_b = positions_b[s:e_b]
-        print(f"Frame range: {s} → A:{e_a}, B:{e_b}")
+        print(f"Frame range: {s} -> A:{e_a}, B:{e_b}")
     
     # Downsample
     if downsample > 1:
@@ -298,8 +294,10 @@ def compare(npy_path_a: Union[str, Path],
     result_path = create_comparison_animation(
         positions_a, positions_b, hierarchy, output_path,
         mode=mode, fps=fps, title=title, fixed_view=fixed_view,
-        label_a=label_a, label_b=label_b,
+        label_a=label_a, label_b=label_b, display=display,
     )
-    print(f"Saved: {result_path}")
+    
+    if result_path is not None:
+        print(f"Saved: {result_path}")
     
     return result_path
