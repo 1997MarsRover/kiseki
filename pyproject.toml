@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kiseki"
+version = "0.1.0"
+description = "Kiseki (軌跡) — Lightweight motion trajectory visualization from .npy feature files"
+readme = "README.md"
+authors = [
+    {name = "anthony", email = "antonygithinji11156@gmail.com"}
+]
+license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Video",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
+keywords = ["motion", "visualization", "animation", "skeleton", "bvh", "trajectory", "kiseki"]
+requires-python = ">=3.8"
+
+dependencies = [
+    "numpy>=1.20.0",
+    "matplotlib>=3.3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "black>=22.0",
+    "flake8>=4.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/1997MarsRover/kiseki"
+Documentation = "https://github.com/1997MarsRover/kiseki#readme"
+Repository = "https://github.com/1997MarsRover/kiseki"
+Issues = "https://github.com/1997MarsRover/kiseki/issues"
+
+[project.scripts]
+kiseki = "motion_viz.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["motion_viz*"]
+exclude = ["tests*", "docs*"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38', 'py39', 'py310', 'py311']
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
