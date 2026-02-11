@@ -49,6 +49,9 @@ Issues = "https://github.com/1997MarsRover/kiseki/issues"
 [project.scripts]
 kiseki = "kiseki.cli:main"
 
+[tool.setuptools.package-data]
+kiseki = ["*.bvh"]
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["kiseki*"]
