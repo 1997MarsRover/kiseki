@@ -1,7 +1,7 @@
 # Kiseki (軌跡)
 
 <div align="center">
-<img src="examples/sloth.png" >
+<img src="examples/sloth.png" width=300, height=300 >
 </div>
 Lightweight motion trajectory visualization -- convert `.npy` motion feature files to animated skeleton videos with minimal dependencies.
 
