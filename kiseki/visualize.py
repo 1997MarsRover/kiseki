@@ -1,5 +1,5 @@
 """
-Visualization functions for motion data.
+Kiseki — Visualization and animation functions for motion trajectory data.
 """
 
 import numpy as np

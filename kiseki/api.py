@@ -1,5 +1,5 @@
 """
-Main API for motion visualization package.
+Kiseki — Main API for motion trajectory visualization.
 """
 
 from pathlib import Path
@@ -44,7 +44,7 @@ def visualize(npy_path: Union[str, Path],
                      Options: 'both_hands', 'left_hand', 'right_hand',
                              'both_arms', 'fingers', 'upper_body'
         fixed_view: Fixed camera view (tuple or preset)
-                   Presets: 'front', 'side', 'top', 'front_down'
+                   Presets: 'front', 'back', 'side', 'left_side', 'top', 'front_down', 'three_quarter'
         hand_point_size: Point size for hand joints
         save_grid: Also save frame grid image
         grid_frames: Number of frames in grid
@@ -53,7 +53,7 @@ def visualize(npy_path: Union[str, Path],
         Path to saved video
         
     Example:
-        >>> from motion_viz import visualize
+        >>> from kiseki import visualize
         >>> output = visualize("motion.npy", focus_joints='both_hands', 
         ...                    fixed_view='front')
     """

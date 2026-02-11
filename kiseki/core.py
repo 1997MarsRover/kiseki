@@ -1,6 +1,6 @@
 """
-Motion visualization core module - minimal dependencies version.
-Converts .npy motion features to animated skeleton videos.
+Kiseki — Core module for motion trajectory reconstruction.
+Converts .npy motion features to 3D joint positions.
 """
 
 import numpy as np

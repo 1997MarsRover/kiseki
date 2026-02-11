@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Command-line interface for motion visualization.
+Kiseki — Command-line interface for motion trajectory visualization.
 """
 
 import argparse
@@ -13,21 +13,22 @@ from .api import visualize
 def main():
     """CLI entry point."""
     parser = argparse.ArgumentParser(
-        description="Visualize motion from .npy feature files",
+        prog="kiseki",
+        description="Kiseki (軌跡) — Visualize motion trajectories from .npy feature files",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   # Basic usage
-  motion-viz -i motion.npy
+  kiseki -i motion.npy
   
   # Focus on hands with front view
-  motion-viz -i motion.npy --focus both_hands --view front
+  kiseki -i motion.npy --focus both_hands --view front
   
   # High FPS with downsampling
-  motion-viz -i motion.npy --fps 60 --downsample 2
+  kiseki -i motion.npy --fps 60 --downsample 2
   
   # With normalization and grid
-  motion-viz -i motion.npy --norm normalization.npz --grid
+  kiseki -i motion.npy --norm normalization.npz --grid
         """
     )
     

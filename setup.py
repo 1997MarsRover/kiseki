@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Setup script for motion-viz package.
+Setup script for kiseki package.
 
 For modern installations, use pyproject.toml.
 This file provides backward compatibility.

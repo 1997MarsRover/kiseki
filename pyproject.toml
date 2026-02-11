@@ -47,11 +47,11 @@ Repository = "https://github.com/1997MarsRover/kiseki"
 Issues = "https://github.com/1997MarsRover/kiseki/issues"
 
 [project.scripts]
-kiseki = "motion_viz.cli:main"
+kiseki = "kiseki.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["motion_viz*"]
+include = ["kiseki*"]
 exclude = ["tests*", "docs*"]
 
 [tool.black]
