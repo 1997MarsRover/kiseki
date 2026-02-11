@@ -295,3 +295,6 @@ Contributions are welcome. Please feel free to submit a pull request.
 - Motion comparison: overlay and side-by-side modes
 - Frame range / clip selection
 - Frame grid generation
+
+This is a public excerpt/minimal version of work done at Signvrse as used at [Motion-S](https://www.kaggle.com/competitions/motion-s-hierarchical-text-to-motion-generation-for-sign-language/overview)
+
