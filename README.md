@@ -1,5 +1,8 @@
 # Kiseki (軌跡)
 
+<div align="center">
+<img src="examples/sloth.png" >
+</div>
 Lightweight motion trajectory visualization -- convert `.npy` motion feature files to animated skeleton videos with minimal dependencies.
 
 The name *Kiseki* means "trajectory" or "path of motion" in Japanese, fitting for a tool that traces and animates skeleton motion paths.
