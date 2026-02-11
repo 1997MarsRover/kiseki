@@ -46,7 +46,9 @@ def create_animation(positions: np.ndarray,
                     tracking: bool = True,
                     focus_joints: Optional[Union[List[int], str]] = None,
                     fixed_view: Optional[Union[Tuple[float, float], str]] = None,
-                    hand_point_size: float = 8) -> Path:
+                    hand_point_size: float = 8,
+                    trail_indices: Optional[List[int]] = None,
+                    trail_length: int = 30) -> Path:
     """
     Create animated skeleton video.
     
@@ -60,6 +62,8 @@ def create_animation(positions: np.ndarray,
         focus_joints: Joints to focus on (list or group name)
         fixed_view: Camera angle (tuple or preset name)
         hand_point_size: Point size for hand joints
+        trail_indices: Joint indices to draw trajectory trails for
+        trail_length: Number of past frames to show in trail
     
     Returns:
         Path to saved video
@@ -151,13 +155,35 @@ def create_animation(positions: np.ndarray,
     # Pre-calculate bone indices
     bone_indices = np.array(bones)
     
-    def init():
-        # Re-apply view and limits to ensure they stick through animation
+    # Setup trajectory trails
+    trail_collections = []
+    TRAIL_COLORS = [
+        [0.16, 0.50, 0.73],  # Blue
+        [0.15, 0.68, 0.38],  # Green
+        [0.91, 0.30, 0.24],  # Red
+        [0.56, 0.27, 0.68],  # Purple
+        [1.00, 0.60, 0.00],  # Orange
+        [0.00, 0.74, 0.83],  # Cyan
+        [0.80, 0.20, 0.60],  # Magenta
+        [0.40, 0.65, 0.12],  # Olive
+    ]
+    if trail_indices is not None:
+        print(f"Trails enabled for {len(trail_indices)} joints, length={trail_length}")
+        for i, joint_idx in enumerate(trail_indices):
+            base_color = TRAIL_COLORS[i % len(TRAIL_COLORS)]
+            tc = Line3DCollection([], linewidths=2.5)
+            ax.add_collection3d(tc, autolim=False)
+            trail_collections.append((joint_idx, base_color, tc))
+    
+    def _apply_view():
+        """Apply camera view angle."""
         if fixed_view is not None:
             ax.view_init(elev=fixed_view[0], azim=fixed_view[1])
         else:
             ax.view_init(elev=VIEW_PRESETS['front'][0], azim=VIEW_PRESETS['front'][1])
-        
+    
+    def _apply_limits():
+        """Apply axis limits."""
         if focus_joints is not None:
             ax.set_xlim(center[0] - radius, center[0] + radius)
             ax.set_ylim(center[2] - radius, center[2] + radius)
@@ -166,7 +192,10 @@ def create_animation(positions: np.ndarray,
             ax.set_xlim(center[0] - radius, center[0] + radius)
             ax.set_ylim(center[2] - radius, center[2] + radius)
             ax.set_zlim(center[1] - radius, center[1] + radius)
-        
+    
+    def init():
+        _apply_view()
+        _apply_limits()
         return scatter, bone_collection, frame_text
     
     def update(frame):
@@ -181,20 +210,39 @@ def create_animation(positions: np.ndarray,
                             pos[c_idx][:, [0, 2, 1]]], axis=1)
         bone_collection.set_segments(segments)
         
+        # Update trajectory trails
+        for joint_idx, base_color, tc in trail_collections:
+            start = max(0, frame - trail_length)
+            trail_pos = positions[start:frame + 1, joint_idx]  # (T, 3)
+            
+            if len(trail_pos) > 1:
+                # Swap Y/Z for matplotlib coordinate system
+                points = trail_pos[:, [0, 2, 1]]
+                segs = np.stack([points[:-1], points[1:]], axis=1)
+                
+                # RGBA colors with fading alpha (old=faint, new=bright)
+                n_segs = len(segs)
+                colors = np.zeros((n_segs, 4))
+                colors[:, :3] = base_color
+                colors[:, 3] = np.linspace(0.05, 0.9, n_segs)
+                
+                tc.set_segments(segs)
+                tc.set_color(colors)
+            else:
+                tc.set_segments([])
+        
         # Update camera limits per frame
         if focus_joints is not None:
-            # Static bounds computed across all frames — no per-frame tracking
             ax.set_xlim(center[0] - radius, center[0] + radius)
             ax.set_ylim(center[2] - radius, center[2] + radius)
             ax.set_zlim(center[1] - radius, center[1] + radius)
         elif tracking:
-            # Track root joint
             target = pos[0]
             ax.set_xlim(target[0] - radius, target[0] + radius)
             ax.set_ylim(target[2] - radius, target[2] + radius)
             ax.set_zlim(target[1] - radius, target[1] + radius)
         
-        # Re-apply view angle every frame to prevent matplotlib from resetting it
+        # Re-apply view angle every frame
         if fixed_view is not None:
             ax.view_init(elev=fixed_view[0], azim=fixed_view[1])
         

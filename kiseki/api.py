@@ -11,6 +11,7 @@ from .core import (
     find_bvh_file,
     parse_bvh_hierarchy,
     reconstruct_positions,
+    resolve_joint_indices,
 )
 from .visualize import create_animation, create_frame_grid
 
@@ -27,7 +28,11 @@ def visualize(npy_path: Union[str, Path],
              fixed_view: Optional[Union[Tuple[float, float], str]] = None,
              hand_point_size: float = 8,
              save_grid: bool = False,
-             grid_frames: int = 9) -> Path:
+             grid_frames: int = 9,
+             start_frame: Optional[int] = None,
+             end_frame: Optional[int] = None,
+             trails: Optional[Union[List[str], str]] = None,
+             trail_length: int = 30) -> Path:
     """
     Convert .npy motion file to animated video.
     
@@ -44,18 +49,26 @@ def visualize(npy_path: Union[str, Path],
                      Options: 'both_hands', 'left_hand', 'right_hand',
                              'both_arms', 'fingers', 'upper_body'
         fixed_view: Fixed camera view (tuple or preset)
-                   Presets: 'front', 'back', 'side', 'left_side', 'top', 'front_down', 'three_quarter'
+                   Presets: 'front', 'back', 'side', 'left_side', 'top',
+                           'front_down', 'three_quarter'
         hand_point_size: Point size for hand joints
         save_grid: Also save frame grid image
         grid_frames: Number of frames in grid
+        start_frame: Start frame index (inclusive, applied after reconstruction)
+        end_frame: End frame index (exclusive, applied after reconstruction)
+        trails: Joint names or preset to draw trajectory trails for
+                Presets: 'wrists', 'hands', 'fingertips', 'feet', 'all_extremities'
+                Or list of joint names: ['left_wrist', 'right_wrist']
+        trail_length: Number of past frames visible in each trail (default: 30)
     
     Returns:
         Path to saved video
         
     Example:
         >>> from kiseki import visualize
-        >>> output = visualize("motion.npy", focus_joints='both_hands', 
-        ...                    fixed_view='front')
+        >>> visualize("motion.npy", focus_joints='both_hands', fixed_view='front')
+        >>> visualize("motion.npy", trails='wrists', trail_length=30)
+        >>> visualize("motion.npy", start_frame=50, end_frame=200)
     """
     # Setup paths
     npy_path = Path(npy_path)
@@ -90,10 +103,21 @@ def visualize(npy_path: Union[str, Path],
     positions, hierarchy = reconstruct_positions(features, num_joints, parents)
     print(f"Reconstructed: {positions.shape[0]} frames, {positions.shape[1]} joints")
     
+    # Frame range selection
+    if start_frame is not None or end_frame is not None:
+        s = start_frame or 0
+        e = end_frame or positions.shape[0]
+        e = min(e, positions.shape[0])
+        positions = positions[s:e]
+        print(f"Frame range: {s}→{e} ({positions.shape[0]} frames)")
+    
     # Downsample
     if downsample > 1:
         positions = positions[::downsample]
         print(f"Downsampled to {positions.shape[0]} frames")
+    
+    # Resolve trail joint names → indices
+    trail_indices = resolve_joint_indices(trails, joint_names)
     
     # Create animation
     print("Creating animation...")
@@ -101,7 +125,8 @@ def visualize(npy_path: Union[str, Path],
         positions, hierarchy, output_path,
         fps=fps, title=title, tracking=tracking,
         focus_joints=focus_joints, fixed_view=fixed_view,
-        hand_point_size=hand_point_size
+        hand_point_size=hand_point_size,
+        trail_indices=trail_indices, trail_length=trail_length,
     )
     print(f"Saved: {result_path}")
     

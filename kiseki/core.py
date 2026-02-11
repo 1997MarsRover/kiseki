@@ -242,3 +242,57 @@ JOINT_GROUPS = {
 
 FINGER_JOINTS = set(range(21, 36)) | set(range(40, 55))
 HAND_JOINTS = set(range(20, 36)) | set(range(39, 55))
+
+
+# ============================================================================
+# Trail Presets (joint names to trace over time)
+# ============================================================================
+
+TRAIL_PRESETS = {
+    'wrists': ['left_wrist', 'right_wrist'],
+    'hands': ['left_wrist', 'right_wrist', 'left_index1', 'right_index1',
+              'left_middle1', 'right_middle1'],
+    'fingertips': ['left_index3', 'left_middle3', 'left_pinky3', 'left_ring3', 'left_thumb3',
+                   'right_index3', 'right_middle3', 'right_pinky3', 'right_ring3', 'right_thumb3'],
+    'feet': ['left_foot', 'right_foot'],
+    'all_extremities': ['left_wrist', 'right_wrist', 'left_foot', 'right_foot', 'head'],
+}
+
+
+def resolve_joint_indices(joints, joint_names: List[str]) -> Optional[List[int]]:
+    """
+    Resolve joint names, indices, or presets to a list of joint indices.
+    
+    Args:
+        joints: str (preset or single name), list of str/int, or None
+        joint_names: List of joint names from BVH
+    
+    Returns:
+        List of joint indices, or None
+    """
+    if joints is None:
+        return None
+    
+    # If it's a preset string, expand it
+    if isinstance(joints, str):
+        if joints in TRAIL_PRESETS:
+            joints = TRAIL_PRESETS[joints]
+        else:
+            joints = [joints]
+    
+    name_to_idx = {name: i for i, name in enumerate(joint_names)}
+    
+    indices = []
+    for j in joints:
+        if isinstance(j, int):
+            if 0 <= j < len(joint_names):
+                indices.append(j)
+            else:
+                print(f"Warning: joint index {j} out of range, skipping")
+        elif isinstance(j, str):
+            if j in name_to_idx:
+                indices.append(name_to_idx[j])
+            else:
+                print(f"Warning: joint '{j}' not found in skeleton, skipping")
+    
+    return indices if indices else None
